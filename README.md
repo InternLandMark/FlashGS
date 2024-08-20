@@ -2,7 +2,7 @@
 FlashGS is an efficient CUDA Python library, enabling real-time 3D Gaussian Splatting (3DGS) based rendering especially for large-scale and high-resolution scenes.
 
 ## Hardware Requirement
-NVIDIA's server-grade and consumer-grade GPUs should work for our implementation. We have conducted our experiments on an NVIDIA A100, V100, RTX 2080ti, RTX 3090 nad RTX 4090 GPUs.
+NVIDIA's server-grade and consumer-grade GPUs should work for our implementation. We have conducted our experiments on an NVIDIA A100, V100, RTX 2080ti, RTX 3090 and RTX 4090 GPUs.
 
 ## Directories
 * `csrc/`: Our CUDA C++ implementation of FlashGS. The optimized rendering kernels are under `csrc/cuda_rasterizer/`.

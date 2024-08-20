@@ -121,4 +121,9 @@ if __name__ == "__main__":
     rasterizer = Rasterizer(scene, MAX_NUM_RENDERED, SORT_BUFFER_SIZE, MAX_NUM_TILES)
 
     image = rasterizer.forward(scene, camera, bg_color)
-    savePpm(image, "C:\\Users\\csy\\Desktop\\cuda_rasterizer\\000001.ppm")
+    t0 = time.time()
+    image = rasterizer.forward(scene, camera, bg_color)
+    t1 = time.time()
+    print("elapsed time = %f ms" % ((t1 - t0) * 1000))
+
+    savePpm(image, "000001.ppm")

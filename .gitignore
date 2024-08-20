@@ -1,0 +1,11 @@
+build/
+.idea/
+flash_gaussian_splatting.egg-info/
+dist/
+
+*.ppm
+*.png
+*.jpg
+*.jpeg
+*.json
+*.ply

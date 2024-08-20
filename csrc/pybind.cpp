@@ -1,5 +1,9 @@
 #include "ops.h"
 
+#include <fstream>
+#include <iostream>
+#include <string>
+
 struct VertexStorage
 {
     glm::vec3 position;
@@ -133,7 +137,7 @@ void preprocess_torch(
                 {rotation_data[6], rotation_data[7], rotation_data[8]}}),
         focal_x, focal_y, zFar, zNear,
         points_xy.contiguous().data_ptr<float>(), depths.contiguous().data_ptr<float>(), rgb.contiguous().data_ptr<float>(), conic_opacity.contiguous().data_ptr<float>(),
-        (uint64_t*)gaussian_keys_unsorted.contiguous().data_ptr<long long>(), (uint32_t*)gaussian_values_unsorted.contiguous().data_ptr<int>(),
+        (uint64_t*)gaussian_keys_unsorted.contiguous().data_ptr<int64_t>(), (uint32_t*)gaussian_values_unsorted.contiguous().data_ptr<int>(),
         curr_offset.data_ptr<int>());
 }
 
@@ -146,8 +150,8 @@ void sort_gaussian_torch(int num_rendered,
     sort_gaussian(num_rendered,
         width, height, block_x, block_y,
         (char*)list_sorting_space.contiguous().data_ptr(), list_sorting_space.size(0),
-        (uint64_t*)gaussian_keys_unsorted.contiguous().data_ptr<long long>(), (uint32_t*)gaussian_values_unsorted.contiguous().data_ptr<int>(),
-        (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<long long>(), (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>());
+        (uint64_t*)gaussian_keys_unsorted.contiguous().data_ptr<int64_t>(), (uint32_t*)gaussian_values_unsorted.contiguous().data_ptr<int>(),
+        (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<int64_t>(), (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>());
 }
 
 void render_torch(int num_rendered,
@@ -161,7 +165,7 @@ void render_torch(int num_rendered,
     render(num_rendered,
         width, height,
         points_xy.contiguous().data_ptr<float>(), depths.contiguous().data_ptr<float>(), rgb.contiguous().data_ptr<float>(), conic_opacity.contiguous().data_ptr<float>(),
-        (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<long long>(), (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>(),
+        (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<int64_t>(), (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>(),
         ranges.contiguous().data_ptr<int>(),
         {bg_color_data[0], bg_color_data[1], bg_color_data[2]}, (char*)out_color.data_ptr());
 }

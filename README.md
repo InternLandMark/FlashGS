@@ -14,5 +14,6 @@ NVIDIA's server-grade and consumer-grade GPUs should work for our implementation
 You can follow the following steps to setup on your machine:
 * Clone the FlashGS project from this page.
 * Download the dependencies as we recommend.
-* Use `python setup.py install` to install FlashGS library.
+* Use `python setup.py install` or `pip install .` to install FlashGS library.
 * Run the provided example with your datasets to test.
+* Run `pip uninstall flash-gaussian-splatting` before you compile and install the new version.

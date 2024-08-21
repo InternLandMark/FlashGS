@@ -1,6 +1,7 @@
 import time
 import torch
 import flash_gaussian_splatting
+import json
 
 
 class Scene:
@@ -23,25 +24,16 @@ class Scene:
 
 
 class Camera:
-    def __init__(self):
-        self.width = 1957
-        self.height = 1091
-        self.position = torch.empty(3)
-        self.position[0] = 3.3989622700470066
-        self.position[1] = 0.6835340434263679
-        self.position[2] = -2.2991544105562696
-        self.rotation = torch.empty((3, 3))
-        self.rotation[0, 0] = 0.7861880261556364
-        self.rotation[0, 1] = -0.01644204414928749
-        self.rotation[0, 2] = -0.6177686028875999
-        self.rotation[1, 0] = -0.028784446228571188
-        self.rotation[1, 1] = 0.9975867826238479
-        self.rotation[1, 2] = -0.06318280453979654
-        self.rotation[2, 0] = 0.6173166474223896
-        self.rotation[2, 1] = 0.06745569151963769
-        self.rotation[2, 2] = 0.783817508414292
-        self.focal_x = 1163.2547280302354
-        self.focal_y = 1156.2804049882861
+    def __init__(self, camera_json):
+        print(camera_json)
+        self.id = camera_json['id']
+        self.img_name = camera_json['img_name']
+        self.width = camera_json['width']
+        self.height = camera_json['height']
+        self.position = torch.tensor(camera_json['position'])
+        self.rotation = torch.tensor(camera_json['rotation'])
+        self.focal_x = camera_json['fx']
+        self.focal_y = camera_json['fy']
         self.zFar = 100.0
         self.zNear = 0.01
 
@@ -69,6 +61,7 @@ class Rasterizer:
     # 前向传播（应用层封装）
     def forward(self, scene, camera, bg_color):
         # 属性预处理 + 键值绑定
+        self.curr_offset.fill_(0)
         flash_gaussian_splatting.ops.preprocess(scene.position, scene.shs, scene.opacity, scene.cov3d,
                                     camera.width, camera.height, 32, 16,
                                     camera.position, camera.rotation,
@@ -79,7 +72,7 @@ class Rasterizer:
         
         # 键值对数量判断 + 处理键值对过多的异常情况
         num_rendered = int(self.curr_offset.cpu()[0])
-        print(num_rendered)
+        # print(num_rendered)
         if num_rendered >= MAX_NUM_RENDERED:
             raise
 
@@ -116,14 +109,19 @@ if __name__ == "__main__":
     scene = Scene(device)
     scene.loadPly(scene_path)
 
-    camera = Camera()
+    with open(camera_path, 'r') as camera_file:
+        cameras_json = json.loads(camera_file.read())
 
     rasterizer = Rasterizer(scene, MAX_NUM_RENDERED, SORT_BUFFER_SIZE, MAX_NUM_TILES)
+    for camera_json in cameras_json:
+        camera = Camera(camera_json)
+        print("image name = %s" % camera.img_name)
 
-    image = rasterizer.forward(scene, camera, bg_color)
-    t0 = time.time()
-    image = rasterizer.forward(scene, camera, bg_color)
-    t1 = time.time()
-    print("elapsed time = %f ms" % ((t1 - t0) * 1000))
+        image = rasterizer.forward(scene, camera, bg_color)  # warm up
 
-    savePpm(image, "000001.ppm")
+        t0 = time.time()
+        image = rasterizer.forward(scene, camera, bg_color)  # test performance
+        t1 = time.time()
+        print("elapsed time = %f ms" % ((t1 - t0) * 1000))
+
+        savePpm(image, "%s.ppm" % camera.img_name)

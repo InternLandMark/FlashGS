@@ -526,7 +526,8 @@ glm::mat4 getProjectionMatrix(int width, int height, glm::vec3 position, glm::ma
 	float right = width / (2.0f * focal_x) * zNear;
 	float left = -right;
 
-	glm::mat4 P = {};
+	glm::mat4 P;
+	memset(&P, 0, sizeof P);
 	float z_sign = 1.0f;
 
 	P[0][0] = 2.0f * zNear / (right - left);

@@ -15,8 +15,9 @@ def _is_cuda() -> bool:
 ext_modules = []
 
 # Compiler flags.
+# Accelerate compilation speed and prevent compiler from performing negative optimizations!
 CXX_FLAGS = ["-g", "-O1", "-std=c++11"]
-NVCC_FLAGS = ["-O1"]
+NVCC_FLAGS = ["-O1", '-Xptxas="-O1"']
 
 
 def glob(pattern: str):
@@ -40,7 +41,8 @@ if _is_cuda():
         )
     )
 
-setup(name='flash_gaussian_splatting',
+setup(name="flash_gaussian_splatting",
+      version="0.0.1",
       ext_modules=ext_modules,
-      cmdclass={'build_ext': BuildExtension}
+      cmdclass={"build_ext": BuildExtension}
       )

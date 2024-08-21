@@ -15,7 +15,7 @@ class Scene:
 
     def loadPly(self, scene_path):
         self.num_vertex, self.position, self.shs, self.opacity, self.cov3d = flash_gaussian_splatting.ops.loadPly(scene_path)
-        print(self.num_vertex)
+        print("num_vertex = %d" % self.num_vertex)
         # 58*4byte
         self.position = self.position.to(self.device) # 3
         self.shs = self.shs.to(self.device) # 48
@@ -25,7 +25,6 @@ class Scene:
 
 class Camera:
     def __init__(self, camera_json):
-        print(camera_json)
         self.id = camera_json['id']
         self.img_name = camera_json['img_name']
         self.width = camera_json['width']
@@ -119,9 +118,14 @@ if __name__ == "__main__":
 
         image = rasterizer.forward(scene, camera, bg_color)  # warm up
 
+        n = 10
+        torch.cuda.synchronize()
         t0 = time.time()
-        image = rasterizer.forward(scene, camera, bg_color)  # test performance
+        for _ in range(10):
+            image = rasterizer.forward(scene, camera, bg_color)  # test performance
+        torch.cuda.synchronize()
         t1 = time.time()
-        print("elapsed time = %f ms" % ((t1 - t0) * 1000))
+        print("elapsed time = %f ms" % ((t1 - t0) / n * 1000))
+        print("fps = %f" % (n / (t1 - t0)))
 
         savePpm(image, "%s.ppm" % camera.img_name)

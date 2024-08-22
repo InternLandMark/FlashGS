@@ -5,7 +5,7 @@ import os
 import sys
 import json
 import time
-
+import cv2
 
 class Scene:
     def __init__(self, device):
@@ -84,14 +84,22 @@ class Rasterizer:
                                                    self.gaussian_keys_unsorted, self.gaussian_values_unsorted,
                                                    self.gaussian_keys_sorted, self.gaussian_values_sorted)
         # 排序 + 像素着色 + 混色阶段
-        out_color = torch.zeros((camera.height, camera.width, 3), device=scene.device, dtype=torch.int8)
+        out_color = torch.zeros((camera.height, camera.width, 3), device=scene.device, dtype=torch.uint8)
         flash_gaussian_splatting.ops.render_32x16(num_rendered, camera.width, camera.height,
                                                   self.points_xy, self.depths, self.rgb, self.conic_opacity,
                                                   self.gaussian_keys_sorted, self.gaussian_values_sorted,
                                                   self.ranges, bg_color, out_color)
         return out_color
 
+def save_png(image: torch.Tensor, path: str):    
+    # image_bytes = image.cpu().numpy().tobytes()
+    # image_uint8 = np.frombuffer(image_bytes, dtype=np.uint8).reshape(image.shape)    
+    image_np = image.cpu().numpy() # .astype(np.uint8) 
+    image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+    # Save the image
+    cv2.imwrite(path.replace("ppm", "jpeg"), image_bgr)
 
+        
 def savePpm(image, path):
     image = image.cpu()
     assert image.dim() >= 3
@@ -137,7 +145,7 @@ def render_scene(model_path, test_performance=False):
             print("fps = %f" % (n / (t1 - t0)))
 
         image_path = os.path.join(image_dir, "%s.ppm" % camera.img_name)
-        savePpm(image, image_path)
+        save_png(image, image_path)
 
 
 MAX_NUM_RENDERED = 2 ** 27
@@ -149,7 +157,7 @@ if __name__ == "__main__":
         model_path = sys.argv[1]
         render_scene(model_path)
     else:
-        models_path = "D:\\models"  # https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/pretrained/models.zip
+        models_path = ".\\results\\models"  # https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/pretrained/models.zip
         for entry in os.scandir(models_path):
             if entry.is_dir():
                 render_scene(entry.path)

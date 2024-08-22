@@ -15,5 +15,9 @@ You can follow the following steps to setup on your machine:
 * Clone the FlashGS project from this page.
 * Download the dependencies as we recommend.
 * Use `python setup.py install` or `pip install .` to install FlashGS library.
-* Run the provided example with your datasets to test.
 * Run `pip uninstall flash-gaussian-splatting` before you compile and install the new version.
+
+## Run Example
+* Download the pre-trained models. `https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/pretrained/models.zip`
+* Run `python example.py model_path`.
+* Open `model_path/test_out` and check the result.

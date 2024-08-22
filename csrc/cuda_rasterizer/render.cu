@@ -10,22 +10,21 @@ constexpr uint32_t THREAD_Y = 4;
 // Check keys to see if it is at the start/end of one tile's range in
 // the full sorted list. If yes, write start/end of this tile.
 // Run once per instanced (duplicated) Gaussian ID.
-//识别排序后的键列表中每个tile范围的起始和结束位置
-__global__ void identifyTileRanges(int L, uint64_t* point_list_keys, int2* ranges)  //L：排序后的键列表的长度  point_list_keys：key列表 输出ranges：存储每个tile范围开始和结束的位置 //64
+__global__ void identifyTileRanges(int L, uint64_t* point_list_keys, int2* ranges)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >= L)
 		return;
 
 	// Read tile ID from key. Update start/end of tile range if at limit.
-	uint64_t key = point_list_keys[idx];  //读取当前key，从总提取tile id 64
+	uint64_t key = point_list_keys[idx];
 	uint32_t currtile = key >> 32; //32
 	if (idx == 0)
-		ranges[currtile].x = 0;  //如果当前索引是列表的第一个元素，将当前tile范围的起始位置设置为 0
-	else   //否则，对于其他索引，检查当前tile是否与前一个tile相同
+		ranges[currtile].x = 0;
+	else
 	{
 		uint32_t prevtile = point_list_keys[idx - 1] >> 32; //32
-		if (currtile != prevtile)    //如果当前tile与前一个tile不同，则更新前一个tile范围的结束位置和当前tile范围的起始位置
+		if (currtile != prevtile)
 		{
 			ranges[prevtile].y = idx;
 			ranges[currtile].x = idx;

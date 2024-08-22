@@ -323,8 +323,8 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	glm::vec3* rgb,
 	float4* conic_opacity,
 	int* curr_offset,
-	uint64_t* gaussian_keys_unsorted,   //用于存储键值对的数组 /64
-	uint32_t* gaussian_values_unsorted,  //用于存储键值对的数组
+	uint64_t* gaussian_keys_unsorted,
+	uint32_t* gaussian_values_unsorted,
 	const dim3 grid)
 {
 	int lane = threadIdx.y * blockDim.x + threadIdx.x;
@@ -356,7 +356,6 @@ __global__ void preprocessCUDA(int P, int D, int M,
 			if (255.0f * opacity < 1.0f)
 				break;
 
-			//3d高斯球的中心点投影
 			// Transform point by projecting
 			float3 p_proj;
 			if (is_fisheye)
@@ -376,7 +375,6 @@ __global__ void preprocessCUDA(int P, int D, int M,
 				p_proj = { p_hom.x * p_w, p_hom.y * p_w, p_hom.z * p_w };
 			}
 
-			//3d高斯投影在平面上的椭圆
 			// Compute 2D screen-space covariance matrix
 			float3 cov = computeCov2D(p_orig, focal_x, focal_y, tan_fovx, tan_fovy, cov3Ds + idx_vec * 6, viewmatrix, is_fisheye);
 
@@ -390,7 +388,6 @@ __global__ void preprocessCUDA(int P, int D, int M,
 			width = (int)(1.414214f * __fsqrt_ru(cov.x * power) + 1.0f);
 			height = (int)(1.414214f * __fsqrt_ru(cov.z * power) + 1.0f);
 
-			//包围盒覆盖了哪些tile，要用的值存储在中间结果中
 			point_xy = { ndc2Pix(p_proj.x, W), ndc2Pix(p_proj.y, H) };
 			getRect(point_xy, width, height, rect_min, rect_max, grid);
 			point_valid = (rect_max.x - rect_min.x) * (rect_max.y - rect_min.y) > 0;
@@ -407,12 +404,12 @@ __global__ void preprocessCUDA(int P, int D, int M,
 			block_intersect_ellipse(pix_min, pix_max, point_xy, conic, power);
 		if (valid)
 		{
-			uint64_t key = rect_min.y * grid.x + rect_min.x;   //得到tile对应本张图片的tile_id 64
+			uint64_t key = rect_min.y * grid.x + rect_min.x;
 			key <<= 32;
-			key |= __float_as_uint(p_view.z);  //该高斯球对应的深度 depth_id  32
+			key |= __float_as_uint(p_view.z);
 			int offset = atomicAdd(curr_offset, 1);
-			gaussian_keys_unsorted[offset] = key;    //key
-			gaussian_values_unsorted[offset] = idx_vec;  //高斯id
+			gaussian_keys_unsorted[offset] = key;
+			gaussian_values_unsorted[offset] = idx_vec;
 		}
 		point_valid = false;
 	}
@@ -452,7 +449,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 			// are first sorted by tile and then by depth. 
 			__syncwarp();
 			bool vertex_valid = false;
-			for (int y0 = my_rect_min.y; y0 < my_rect_max.y; y0 += blockDim.y)   //循环迭代tile范围，为每个tile生成键值对
+			for (int y0 = my_rect_min.y; y0 < my_rect_max.y; y0 += blockDim.y)
 			{
 				int y = y0 + threadIdx.y;
 				for (int x0 = my_rect_min.x; x0 < my_rect_max.x; x0 += blockDim.x)
@@ -480,14 +477,14 @@ __global__ void preprocessCUDA(int P, int D, int M,
 					}
 					vertex_valid = true;
 					int count = __popc(mask & ((1 << lane) - 1));
-					uint64_t key = y * grid.x + x;   //得到tile对应本张图片的tile_id 64
+					uint64_t key = y * grid.x + x;
 					key <<= 32;
-					key |= __float_as_uint(my_depth);  //该高斯球对应的深度 depth_id  32
+					key |= __float_as_uint(my_depth);
 					my_offset = __shfl_sync(~0, my_offset, 0);
 					if (valid)
 					{
-						gaussian_keys_unsorted[my_offset + count] = key;    //key
-						gaussian_values_unsorted[my_offset + count] = idx;  //高斯id
+						gaussian_keys_unsorted[my_offset + count] = key;
+						gaussian_values_unsorted[my_offset + count] = idx;
 					}
 				}
 			}

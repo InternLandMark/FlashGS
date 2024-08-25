@@ -44,21 +44,23 @@ class Camera:
 # 静态分配内存光栅化器
 class Rasterizer:
     # 构造函数中分配内存
-    def __init__(self, scene, MAX_NUM_RENDERED, SORT_BUFFER_SIZE, MAX_NUM_TILES):
-        # 24byte
+    def __init__(self, scene, MAX_NUM_RENDERED, MAX_NUM_TILES):
+        # 24 bytes
         self.gaussian_keys_unsorted = torch.zeros(MAX_NUM_RENDERED, device=scene.device, dtype=torch.int64)
         self.gaussian_values_unsorted = torch.zeros(MAX_NUM_RENDERED, device=scene.device, dtype=torch.int32)
         self.gaussian_keys_sorted = torch.zeros(MAX_NUM_RENDERED, device=scene.device, dtype=torch.int64)
         self.gaussian_values_sorted = torch.zeros(MAX_NUM_RENDERED, device=scene.device, dtype=torch.int32)
 
-        self.list_sorting_space = torch.zeros(SORT_BUFFER_SIZE, device=scene.device, dtype=torch.int8)
+        self.MAX_NUM_RENDERED = MAX_NUM_RENDERED
+        self.MAX_NUM_TILES = MAX_NUM_TILES
+        self.SORT_BUFFER_SIZE = flash_gaussian_splatting.ops.get_sort_buffer_size(MAX_NUM_RENDERED)
+        self.list_sorting_space = torch.zeros(self.SORT_BUFFER_SIZE, device=scene.device, dtype=torch.int8)
         self.ranges = torch.zeros((MAX_NUM_TILES, 2), device=scene.device, dtype=torch.int32)
         self.curr_offset = torch.zeros(1, device=scene.device, dtype=torch.int32)
 
-        # 9*4byte
+        # 40 bytes
         self.points_xy = torch.zeros((scene.num_vertex, 2), device=scene.device, dtype=torch.float32)
-        self.depths = torch.zeros(scene.num_vertex, device=scene.device, dtype=torch.float32)
-        self.rgb = torch.zeros((scene.num_vertex, 3), device=scene.device, dtype=torch.float32)
+        self.rgb_depth = torch.zeros((scene.num_vertex, 4), device=scene.device, dtype=torch.float32)
         self.conic_opacity = torch.zeros((scene.num_vertex, 4), device=scene.device, dtype=torch.float32)
 
     # 前向传播（应用层封装）
@@ -66,27 +68,27 @@ class Rasterizer:
         # 属性预处理 + 键值绑定
         self.curr_offset.fill_(0)
         flash_gaussian_splatting.ops.preprocess(scene.position, scene.shs, scene.opacity, scene.cov3d,
-                                                camera.width, camera.height, 32, 16,
+                                                camera.width, camera.height, 16, 16,
                                                 camera.position, camera.rotation,
                                                 camera.focal_x, camera.focal_y, camera.zFar, camera.zNear,
-                                                self.points_xy, self.depths, self.rgb, self.conic_opacity,
+                                                self.points_xy, self.rgb_depth, self.conic_opacity,
                                                 self.gaussian_keys_unsorted, self.gaussian_values_unsorted,
                                                 self.curr_offset)
 
         # 键值对数量判断 + 处理键值对过多的异常情况
         num_rendered = int(self.curr_offset.cpu()[0])
         # print(num_rendered)
-        if num_rendered >= MAX_NUM_RENDERED:
-            raise "Too many tils!"
+        if num_rendered >= self.MAX_NUM_RENDERED:
+            raise "Too many k-v pairs!"
 
-        flash_gaussian_splatting.ops.sort_gaussian(num_rendered, camera.width, camera.height, 32, 16,
+        flash_gaussian_splatting.ops.sort_gaussian(num_rendered, camera.width, camera.height, 16, 16,
                                                    self.list_sorting_space,
                                                    self.gaussian_keys_unsorted, self.gaussian_values_unsorted,
                                                    self.gaussian_keys_sorted, self.gaussian_values_sorted)
         # 排序 + 像素着色 + 混色阶段
         out_color = torch.zeros((camera.height, camera.width, 3), device=scene.device, dtype=torch.int8)
-        flash_gaussian_splatting.ops.render_32x16(num_rendered, camera.width, camera.height,
-                                                  self.points_xy, self.depths, self.rgb, self.conic_opacity,
+        flash_gaussian_splatting.ops.render_16x16(num_rendered, camera.width, camera.height,
+                                                  self.points_xy, self.rgb_depth, self.conic_opacity,
                                                   self.gaussian_keys_sorted, self.gaussian_values_sorted,
                                                   self.ranges, bg_color, out_color)
         return out_color
@@ -118,7 +120,9 @@ def render_scene(model_path, test_performance=False):
     if not os.path.exists(image_dir):
         os.mkdir(image_dir)
 
-    rasterizer = Rasterizer(scene, MAX_NUM_RENDERED, SORT_BUFFER_SIZE, MAX_NUM_TILES)
+    MAX_NUM_RENDERED = 2 ** 27
+    MAX_NUM_TILES = 2 ** 20
+    rasterizer = Rasterizer(scene, MAX_NUM_RENDERED, MAX_NUM_TILES)
     for camera_json in cameras_json:
         camera = Camera(camera_json)
         print("image name = %s" % camera.img_name)
@@ -140,14 +144,10 @@ def render_scene(model_path, test_performance=False):
         savePpm(image, image_path)
 
 
-MAX_NUM_RENDERED = 2 ** 27
-SORT_BUFFER_SIZE = 2 ** 31
-MAX_NUM_TILES = 2 ** 20
-
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
         model_path = sys.argv[1]
-        render_scene(model_path)
+        render_scene(model_path, True)
     else:
         models_path = "D:\\models"  # https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/pretrained/models.zip
         for entry in os.scandir(models_path):

@@ -42,7 +42,7 @@ if _is_cuda():
     )
 
 setup(name="flash_gaussian_splatting",
-      version="0.0.1",
+      version="0.1.0",
       ext_modules=ext_modules,
       cmdclass={"build_ext": BuildExtension}
       )

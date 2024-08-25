@@ -1,3 +1,5 @@
+#include "../ops.h"
+
 #include <cub/cub.cuh>
 #include <cub/device/device_radix_sort.cuh>
 
@@ -34,4 +36,14 @@ void sort_gaussian(int num_rendered,
     {
         throw std::runtime_error(cudaGetErrorString(status));
     }
+}
+
+size_t get_sort_buffer_size(int num_rendered)
+{
+    size_t sort_buffer_size = 0;
+	cub::DeviceRadixSort::SortPairs<uint64_t, uint32_t>(
+		nullptr, sort_buffer_size,
+		nullptr, nullptr,
+		nullptr, nullptr, num_rendered);
+    return sort_buffer_size;
 }

@@ -1,5 +1,7 @@
 #include "ops.h"
 
+#include <torch/extension.h>
+
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -117,26 +119,29 @@ std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> load
 void preprocess_torch(
 	torch::Tensor& orig_points, torch::Tensor& shs, torch::Tensor& opacities, torch::Tensor& cov3Ds,
 	int width, int height, int block_x, int block_y,
-    torch::Tensor& position, torch::Tensor& rotation, float focal_x, float focal_y, float zFar, float zNear,
-	torch::Tensor& points_xy, torch::Tensor& depths, torch::Tensor& rgb, torch::Tensor& conic_opacity,
+    torch::Tensor& position, torch::Tensor& rotation,
+    float focal_x, float focal_y, float zFar, float zNear,
+	torch::Tensor& points_xy, torch::Tensor& rgb_depth, torch::Tensor& conic_opacity,
 	torch::Tensor& gaussian_keys_unsorted, torch::Tensor& gaussian_values_unsorted,
 	torch::Tensor& curr_offset)
 {
     auto position_data = position.contiguous().data_ptr<float>();
     auto rotation_data = rotation.contiguous().data_ptr<float>();
-    if (block_x != 32 || block_y != 16)
-    {
-        throw std::invalid_argument("Only support block_x = 32 and block_y = 16 in this version!");
-    }
-    preprocess(opacities.size(0),
-        orig_points.contiguous().data_ptr<float>(), shs.contiguous().data_ptr<float>(), opacities.contiguous().data_ptr<float>(), cov3Ds.contiguous().data_ptr<float>(),
-        width, height,
+    preprocess(
+        (int)opacities.size(0),
+        (glm::vec3*)orig_points.contiguous().data_ptr<float>(),
+        (shs_deg3_t*)shs.contiguous().data_ptr<float>(),
+        opacities.contiguous().data_ptr<float>(),
+        (cov3d_t*)cov3Ds.contiguous().data_ptr<float>(),
+        width, height, block_x, block_y,
         glm::vec3({position_data[0], position_data[1], position_data[2]}), 
         glm::mat3({{rotation_data[0], rotation_data[1], rotation_data[2]},
                 {rotation_data[3], rotation_data[4], rotation_data[5]},
                 {rotation_data[6], rotation_data[7], rotation_data[8]}}),
         focal_x, focal_y, zFar, zNear,
-        points_xy.contiguous().data_ptr<float>(), depths.contiguous().data_ptr<float>(), rgb.contiguous().data_ptr<float>(), conic_opacity.contiguous().data_ptr<float>(),
+        (float2*)points_xy.contiguous().data_ptr<float>(),
+        (float4*)rgb_depth.contiguous().data_ptr<float>(),
+        (float4*)conic_opacity.contiguous().data_ptr<float>(),
         (uint64_t*)gaussian_keys_unsorted.contiguous().data_ptr<int64_t>(), (uint32_t*)gaussian_values_unsorted.contiguous().data_ptr<int>(),
         curr_offset.data_ptr<int>());
 }
@@ -154,20 +159,64 @@ void sort_gaussian_torch(int num_rendered,
         (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<int64_t>(), (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>());
 }
 
-void render_torch(int num_rendered,
+void render_16x16_torch(int num_rendered,
 	int width, int height,
-	torch::Tensor& points_xy, torch::Tensor& depths, torch::Tensor& rgb, torch::Tensor& conic_opacity,
+	torch::Tensor& points_xy, torch::Tensor& rgb_depth, torch::Tensor& conic_opacity,
 	torch::Tensor& gaussian_keys_sorted, torch::Tensor& gaussian_values_sorted,
     torch::Tensor& ranges,
 	torch::Tensor& bg_color, torch::Tensor& out_color)
 {
     auto bg_color_data = bg_color.contiguous().data_ptr<float>();
-    render(num_rendered,
+    render_16x16(num_rendered,
         width, height,
-        points_xy.contiguous().data_ptr<float>(), depths.contiguous().data_ptr<float>(), rgb.contiguous().data_ptr<float>(), conic_opacity.contiguous().data_ptr<float>(),
-        (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<int64_t>(), (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>(),
-        ranges.contiguous().data_ptr<int>(),
-        {bg_color_data[0], bg_color_data[1], bg_color_data[2]}, (char*)out_color.data_ptr());
+        (float2*)points_xy.contiguous().data_ptr<float>(),
+        (float4*)rgb_depth.contiguous().data_ptr<float>(),
+        (float4*)conic_opacity.contiguous().data_ptr<float>(),
+        (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<int64_t>(),
+        (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>(),
+        (int2*)ranges.contiguous().data_ptr<int>(),
+        float3{bg_color_data[0], bg_color_data[1], bg_color_data[2]},
+        (uchar3*)out_color.data_ptr());
+}
+
+void render_32x16_torch(int num_rendered,
+	int width, int height,
+	torch::Tensor& points_xy, torch::Tensor& rgb_depth, torch::Tensor& conic_opacity,
+	torch::Tensor& gaussian_keys_sorted, torch::Tensor& gaussian_values_sorted,
+    torch::Tensor& ranges,
+	torch::Tensor& bg_color, torch::Tensor& out_color)
+{
+    auto bg_color_data = bg_color.contiguous().data_ptr<float>();
+    render_32x16(num_rendered,
+        width, height,
+        (float2*)points_xy.contiguous().data_ptr<float>(),
+        (float4*)rgb_depth.contiguous().data_ptr<float>(),
+        (float4*)conic_opacity.contiguous().data_ptr<float>(),
+        (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<int64_t>(),
+        (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>(),
+        (int2*)ranges.contiguous().data_ptr<int>(),
+        float3{bg_color_data[0], bg_color_data[1], bg_color_data[2]},
+        (uchar3*)out_color.data_ptr());
+}
+
+void render_32x32_torch(int num_rendered,
+	int width, int height,
+	torch::Tensor& points_xy, torch::Tensor& rgb_depth, torch::Tensor& conic_opacity,
+	torch::Tensor& gaussian_keys_sorted, torch::Tensor& gaussian_values_sorted,
+    torch::Tensor& ranges,
+	torch::Tensor& bg_color, torch::Tensor& out_color)
+{
+    auto bg_color_data = bg_color.contiguous().data_ptr<float>();
+    render_32x32(num_rendered,
+        width, height,
+        (float2*)points_xy.contiguous().data_ptr<float>(),
+        (float4*)rgb_depth.contiguous().data_ptr<float>(),
+        (float4*)conic_opacity.contiguous().data_ptr<float>(),
+        (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<int64_t>(),
+        (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>(),
+        (int2*)ranges.contiguous().data_ptr<int>(),
+        float3{bg_color_data[0], bg_color_data[1], bg_color_data[2]},
+        (uchar3*)out_color.data_ptr());
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
@@ -190,7 +239,22 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
         "sort gaussian key-value pairs");
 
     ops.def(
+        "get_sort_buffer_size",
+        &get_sort_buffer_size,
+        "get sort buffer size");
+
+    ops.def(
+        "render_16x16",
+        &render_16x16_torch,
+        "sort key-value pairs and render");
+
+    ops.def(
         "render_32x16",
-        &render_torch,
+        &render_32x16_torch,
+        "sort key-value pairs and render");
+
+    ops.def(
+        "render_32x32",
+        &render_32x32_torch,
         "sort key-value pairs and render");
 }

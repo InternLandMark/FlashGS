@@ -3,6 +3,9 @@
 #include <cub/cub.cuh>
 #include <cub/device/device_radix_sort.cuh>
 
+namespace flashgs {
+namespace {
+
 static uint32_t getHigherMsb(uint32_t n)
 {
 	uint32_t msb = sizeof(n) * 4;
@@ -19,6 +22,8 @@ static uint32_t getHigherMsb(uint32_t n)
 		msb++;
 	return msb;
 }
+
+} // namespace
 
 void sort_gaussian(int num_rendered,
     int width, int height, int block_x, int block_y,
@@ -47,3 +52,5 @@ size_t get_sort_buffer_size(int num_rendered)
 		nullptr, nullptr, num_rendered);
     return sort_buffer_size;
 }
+
+} // namespace flashgs

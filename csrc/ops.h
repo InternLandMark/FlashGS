@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include "glm/glm.hpp"
 
-constexpr int WARP_SIZE = 32;
+constexpr int FLASHGS_WARP_SIZE = 32;
 
-#define CHECK_CUDA(x)                                                                   \
+#define FLASHGS_CHECK_CUDA(x)                                                                   \
 	{                                                                                   \
 		cudaError_t status = x;                                                         \
 		if (status != cudaSuccess) {                                                    \
@@ -14,6 +14,8 @@ constexpr int WARP_SIZE = 32;
 			exit(1);                                                                    \
 		}                                                                               \
 	}
+
+namespace flashgs {
 
 union cov3d_t
 {
@@ -61,3 +63,5 @@ void render_32x32(int num_rendered,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_sorted, uint32_t* gaussian_values_sorted,
 	int2* ranges, float3 bg_color, uchar3* out_color);
+
+} // namespace flashgs

@@ -6,6 +6,9 @@
 #include <iostream>
 #include <string>
 
+namespace flashgs {
+namespace {
+
 struct VertexStorage
 {
     glm::vec3 position;
@@ -219,42 +222,45 @@ void render_32x32_torch(int num_rendered,
         (uchar3*)out_color.data_ptr());
 }
 
+} // namespace
+} // namespace flashgs
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     auto ops = m.def_submodule("ops", "my custom operators");
 
     ops.def(
         "loadPly",
-        &loadPly_torch,
+        &flashgs::loadPly_torch,
         "load .ply file and return gaussian model data");
 
     ops.def(
         "preprocess",
-        &preprocess_torch,
+        &flashgs::preprocess_torch,
         "preprocess gaussian model data and generate key-value pairs");
 
     ops.def(
         "sort_gaussian",
-        &sort_gaussian_torch,
+        &flashgs::sort_gaussian_torch,
         "sort gaussian key-value pairs");
 
     ops.def(
         "get_sort_buffer_size",
-        &get_sort_buffer_size,
+        &flashgs::get_sort_buffer_size,
         "get sort buffer size");
 
     ops.def(
         "render_16x16",
-        &render_16x16_torch,
+        &flashgs::render_16x16_torch,
         "sort key-value pairs and render");
 
     ops.def(
         "render_32x16",
-        &render_32x16_torch,
+        &flashgs::render_32x16_torch,
         "sort key-value pairs and render");
 
     ops.def(
         "render_32x32",
-        &render_32x32_torch,
+        &flashgs::render_32x32_torch,
         "sort key-value pairs and render");
 }

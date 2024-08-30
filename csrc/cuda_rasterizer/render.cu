@@ -1,5 +1,8 @@
 #include "../ops.h"
 
+namespace flashgs {
+namespace {
+
 // Check keys to see if it is at the start/end of one tile's range in
 // the full sorted list. If yes, write start/end of this tile.
 // Run once per instanced (duplicated) Gaussian ID.
@@ -71,8 +74,8 @@ __forceinline__ __device__ uint8_t write_color(uchar3* __restrict__ out_color,
 
 struct render_load_info
 {
-	const void* data[WARP_SIZE] = { nullptr };
-	int lg2_scale[WARP_SIZE] = { 0 };
+	const void* data[FLASHGS_WARP_SIZE] = { nullptr };
+	int lg2_scale[FLASHGS_WARP_SIZE] = { 0 };
 
 	render_load_info(const uint32_t* point_list, const float2* points_xy, const float4* rgb_depth, const float4* conic_opacity)
 	{
@@ -572,6 +575,8 @@ void render(int num_rendered,
         out_color);
 }
 
+} // namespace
+
 void render_16x16(int num_rendered,
 	int width, int height,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
@@ -601,3 +606,5 @@ void render_32x32(int num_rendered,
     render<32, 32>(num_rendered, width, height, points_xy, rgb_depth, conic_opacity,
 	    gaussian_keys_sorted, gaussian_values_sorted, ranges, bg_color, out_color);
 }
+
+} // namespace flashgs

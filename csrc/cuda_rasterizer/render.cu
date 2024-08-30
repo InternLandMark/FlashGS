@@ -551,19 +551,19 @@ void render(int num_rendered,
 	int width, int height,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_sorted, uint32_t* gaussian_values_sorted,
-	int2* ranges, float3 bg_color, uchar3* out_color)
+	int2* ranges, float3 bg_color, uchar3* out_color, cudaStream_t stream)
 {
 	dim3 grid((width + BLOCK_X - 1) / BLOCK_X, (height + BLOCK_Y - 1) / BLOCK_Y, 1);
-	cudaMemsetAsync(ranges, 0, sizeof(int2) * grid.x * grid.y);
+	cudaMemsetAsync(ranges, 0, sizeof(int2) * grid.x * grid.y, stream);
 
     // Identify start and end of per-tile workloads in sorted list
-    identifyTileRanges<<<(num_rendered + 255) / 256, 256>>>(
+    identifyTileRanges<<<(num_rendered + 255) / 256, 256, 0, stream>>>(
         num_rendered,
         gaussian_keys_sorted,
         ranges);
 
     // Let each tile blend its range of Gaussians independently in parallel
-    renderCUDA<BLOCK_X, BLOCK_Y, BLOCK_X / 8, BLOCK_Y / 4><<<grid, dim3(8, 4, 1)>>>(
+    renderCUDA<BLOCK_X, BLOCK_Y, BLOCK_X / 8, BLOCK_Y / 4><<<grid, dim3(8, 4, 1), 0, stream>>>(
         ranges,
         gaussian_values_sorted,
         width, height, grid.x,
@@ -581,30 +581,30 @@ void render_16x16(int num_rendered,
 	int width, int height,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_sorted, uint32_t* gaussian_values_sorted,
-	int2* ranges, float3 bg_color, uchar3* out_color)
+	int2* ranges, float3 bg_color, uchar3* out_color, cudaStream_t stream)
 {
     render<16, 16>(num_rendered, width, height, points_xy, rgb_depth, conic_opacity,
-	    gaussian_keys_sorted, gaussian_values_sorted, ranges, bg_color, out_color);
+	    gaussian_keys_sorted, gaussian_values_sorted, ranges, bg_color, out_color, stream);
 }
 
 void render_32x16(int num_rendered,
 	int width, int height,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_sorted, uint32_t* gaussian_values_sorted,
-	int2* ranges, float3 bg_color, uchar3* out_color)
+	int2* ranges, float3 bg_color, uchar3* out_color, cudaStream_t stream)
 {
     render<32, 16>(num_rendered, width, height, points_xy, rgb_depth, conic_opacity,
-	    gaussian_keys_sorted, gaussian_values_sorted, ranges, bg_color, out_color);
+	    gaussian_keys_sorted, gaussian_values_sorted, ranges, bg_color, out_color, stream);
 }
 
 void render_32x32(int num_rendered,
 	int width, int height,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_sorted, uint32_t* gaussian_values_sorted,
-	int2* ranges, float3 bg_color, uchar3* out_color)
+	int2* ranges, float3 bg_color, uchar3* out_color, cudaStream_t stream)
 {
     render<32, 32>(num_rendered, width, height, points_xy, rgb_depth, conic_opacity,
-	    gaussian_keys_sorted, gaussian_values_sorted, ranges, bg_color, out_color);
+	    gaussian_keys_sorted, gaussian_values_sorted, ranges, bg_color, out_color, stream);
 }
 
 } // namespace flashgs

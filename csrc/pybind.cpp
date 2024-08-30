@@ -162,6 +162,11 @@ void sort_gaussian_torch(int num_rendered,
         (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<int64_t>(), (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>());
 }
 
+size_t get_sort_buffer_size_torch(int num_rendered)
+{
+    return get_sort_buffer_size(num_rendered);
+}
+
 void render_16x16_torch(int num_rendered,
 	int width, int height,
 	torch::Tensor& points_xy, torch::Tensor& rgb_depth, torch::Tensor& conic_opacity,
@@ -246,7 +251,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 
     ops.def(
         "get_sort_buffer_size",
-        &flashgs::get_sort_buffer_size,
+        &flashgs::get_sort_buffer_size_torch,
         "get sort buffer size");
 
     ops.def(

@@ -456,7 +456,7 @@ void preprocess(int P,
 	float focal_x, float focal_y, float zFar, float zNear,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_unsorted, uint32_t* gaussian_values_unsorted,
-	int* curr_offset)
+	int* curr_offset, cudaStream_t stream)
 {
 	dim3 grid((width + block_x - 1) / block_x, (height + block_y - 1) / block_y, 1);
 
@@ -465,7 +465,7 @@ void preprocess(int P,
 	float tan_fovx = width / (2.0f * focal_x);
 	float tan_fovy = height / (2.0f * focal_y);
 
-	preprocessCUDA<<<(P + 127) / 128, dim3(8, 4, 4)>>>(
+	preprocessCUDA<<<(P + 127) / 128, dim3(8, 4, 4), 0, stream>>>(
 		P,
 		positions,
 		opacities,

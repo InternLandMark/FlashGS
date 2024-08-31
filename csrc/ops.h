@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include "glm/glm.hpp"
 
-constexpr int WARP_SIZE = 32;
+constexpr int FLASHGS_WARP_SIZE = 32;
 
-#define CHECK_CUDA(x)                                                                   \
+#define FLASHGS_CHECK_CUDA(x)                                                                   \
 	{                                                                                   \
 		cudaError_t status = x;                                                         \
 		if (status != cudaSuccess) {                                                    \
@@ -14,6 +14,8 @@ constexpr int WARP_SIZE = 32;
 			exit(1);                                                                    \
 		}                                                                               \
 	}
+
+namespace flashgs {
 
 union cov3d_t
 {
@@ -34,30 +36,32 @@ void preprocess(int P,
 	float focal_x, float focal_y, float zFar, float zNear,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_unsorted, uint32_t* gaussian_values_unsorted,
-	int* curr_offset);
+	int* curr_offset, cudaStream_t stream = 0);
 
 void sort_gaussian(int num_rendered,
 	int width, int height, int block_x, int block_y,
 	char* list_sorting_space, size_t sorting_size,
 	uint64_t* gaussian_keys_unsorted, uint32_t* gaussian_values_unsorted,
-	uint64_t* gaussian_keys_sorted, uint32_t* gaussian_values_sorted);
+	uint64_t* gaussian_keys_sorted, uint32_t* gaussian_values_sorted, cudaStream_t stream = 0);
 
-size_t get_sort_buffer_size(int num_rendered);
+size_t get_sort_buffer_size(int num_rendered, cudaStream_t stream = 0);
 
 void render_16x16(int num_rendered,
 	int width, int height,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_sorted, uint32_t* gaussian_values_sorted,
-	int2* ranges, float3 bg_color, uchar3* out_color);
+	int2* ranges, float3 bg_color, uchar3* out_color, cudaStream_t stream = 0);
 
 void render_32x16(int num_rendered,
 	int width, int height,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_sorted, uint32_t* gaussian_values_sorted,
-	int2* ranges, float3 bg_color, uchar3* out_color);
+	int2* ranges, float3 bg_color, uchar3* out_color, cudaStream_t stream = 0);
 
 void render_32x32(int num_rendered,
 	int width, int height,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_sorted, uint32_t* gaussian_values_sorted,
-	int2* ranges, float3 bg_color, uchar3* out_color);
+	int2* ranges, float3 bg_color, uchar3* out_color, cudaStream_t stream = 0);
+
+} // namespace flashgs

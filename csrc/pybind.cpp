@@ -6,6 +6,9 @@
 #include <iostream>
 #include <string>
 
+namespace flashgs {
+namespace {
+
 struct VertexStorage
 {
     glm::vec3 position;
@@ -159,6 +162,11 @@ void sort_gaussian_torch(int num_rendered,
         (uint64_t*)gaussian_keys_sorted.contiguous().data_ptr<int64_t>(), (uint32_t*)gaussian_values_sorted.contiguous().data_ptr<int>());
 }
 
+size_t get_sort_buffer_size_torch(int num_rendered)
+{
+    return get_sort_buffer_size(num_rendered);
+}
+
 void render_16x16_torch(int num_rendered,
 	int width, int height,
 	torch::Tensor& points_xy, torch::Tensor& rgb_depth, torch::Tensor& conic_opacity,
@@ -219,42 +227,45 @@ void render_32x32_torch(int num_rendered,
         (uchar3*)out_color.data_ptr());
 }
 
+} // namespace
+} // namespace flashgs
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     auto ops = m.def_submodule("ops", "my custom operators");
 
     ops.def(
         "loadPly",
-        &loadPly_torch,
+        &flashgs::loadPly_torch,
         "load .ply file and return gaussian model data");
 
     ops.def(
         "preprocess",
-        &preprocess_torch,
+        &flashgs::preprocess_torch,
         "preprocess gaussian model data and generate key-value pairs");
 
     ops.def(
         "sort_gaussian",
-        &sort_gaussian_torch,
+        &flashgs::sort_gaussian_torch,
         "sort gaussian key-value pairs");
 
     ops.def(
         "get_sort_buffer_size",
-        &get_sort_buffer_size,
+        &flashgs::get_sort_buffer_size_torch,
         "get sort buffer size");
 
     ops.def(
         "render_16x16",
-        &render_16x16_torch,
+        &flashgs::render_16x16_torch,
         "sort key-value pairs and render");
 
     ops.def(
         "render_32x16",
-        &render_32x16_torch,
+        &flashgs::render_32x16_torch,
         "sort key-value pairs and render");
 
     ops.def(
         "render_32x32",
-        &render_32x32_torch,
+        &flashgs::render_32x32_torch,
         "sort key-value pairs and render");
 }

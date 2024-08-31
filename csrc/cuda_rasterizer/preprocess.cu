@@ -7,6 +7,9 @@
 #define GLM_FORCE_CUDA
 #include "../glm/glm.hpp"
 
+namespace flashgs {
+namespace {
+
 constexpr float log2e = 1.4426950216293334961f;
 constexpr float ln2 = 0.69314718055f;
 
@@ -260,7 +263,7 @@ __global__ void preprocessCUDA(
 {
 	int lane = threadIdx.y * blockDim.x + threadIdx.x;
 	int warp_id = blockIdx.x * blockDim.z + threadIdx.z;
-	int idx_vec = warp_id * WARP_SIZE + lane;
+	int idx_vec = warp_id * FLASHGS_WARP_SIZE + lane;
 
 	// Initialize radius and touched tiles to 0. If this isn't changed,
 	// this Gaussian will not be processed further.
@@ -358,7 +361,7 @@ __global__ void preprocessCUDA(
 		};
 		float my_depth = __shfl_sync(~0, p_view.z, i);
 		float my_power = __shfl_sync(~0, power, i);
-		int idx = warp_id * WARP_SIZE + i;
+		int idx = warp_id * FLASHGS_WARP_SIZE + i;
 
 		// For each tile that the bounding rect overlaps, emit a
 		// key/value pair. The key is |  tile ID  |      depth      |,
@@ -444,6 +447,8 @@ glm::mat4 getProjectionMatrix(int width, int height, glm::vec3 position, glm::ma
 	return glm::transpose(P) * getViewMatrix(position, rotation);
 }
 
+} // namespace
+
 void preprocess(int P,
 	glm::vec3* positions, shs_deg3_t* shs, float* opacities, cov3d_t* cov3Ds,
 	int width, int height, int block_x, int block_y,
@@ -451,7 +456,7 @@ void preprocess(int P,
 	float focal_x, float focal_y, float zFar, float zNear,
 	float2* points_xy, float4* rgb_depth, float4* conic_opacity,
 	uint64_t* gaussian_keys_unsorted, uint32_t* gaussian_values_unsorted,
-	int* curr_offset)
+	int* curr_offset, cudaStream_t stream)
 {
 	dim3 grid((width + block_x - 1) / block_x, (height + block_y - 1) / block_y, 1);
 
@@ -460,7 +465,7 @@ void preprocess(int P,
 	float tan_fovx = width / (2.0f * focal_x);
 	float tan_fovy = height / (2.0f * focal_y);
 
-	preprocessCUDA<<<(P + 127) / 128, dim3(8, 4, 4)>>>(
+	preprocessCUDA<<<(P + 127) / 128, dim3(8, 4, 4), 0, stream>>>(
 		P,
 		positions,
 		opacities,
@@ -481,3 +486,5 @@ void preprocess(int P,
 		gaussian_values_unsorted,
 		grid);
 }
+
+} // namepace flashgs

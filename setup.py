@@ -16,7 +16,7 @@ ext_modules = []
 
 # Compiler flags.
 # Accelerate compilation speed and prevent compiler from performing negative optimizations!
-CXX_FLAGS = ["-g", "-O1", "-std=c++11"]
+CXX_FLAGS = ["-g", "-O1", "-std=c++17"]
 NVCC_FLAGS = ["-O1", '-Xptxas="-O1"']
 
 
